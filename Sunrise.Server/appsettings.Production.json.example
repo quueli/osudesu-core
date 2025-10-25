@@ -1,0 +1,62 @@
+{
+  "Note": "Don't forget to remove .example at the end of this file for it to work!",
+  "General": {
+    "WelcomeMessage": "Welcome to Sunrise!",
+    "WebDomain": "osu-sunrise.top",
+    "MedalMirrorUrl": "https://raw.githubusercontent.com/SunriseCommunity/Server-Assets/main/medals/",
+    "IgnoreBeatmapRanking": false,
+    "IncludeUserTokenInLogs": false,
+    "UseCustomBackgrounds": true,
+    "ObservatoryApiKey": "", 
+    "ObservatoryUrl": "host.docker.internal:3333",
+    "OnMaintenance": false,
+    "CountryChangeCooldownInDays": 90,
+    "UsernameChangeCooldownInDays": 30,
+    "RateLimit": {
+      "CallsPerWindow": 200,
+      "Window": 10,
+      "QueueLimit": 20
+    },
+    "UseNewPerformanceCalculationAlgorithm": false
+  },
+  "BeatmapHype": {
+    "UserHypesWeekly": 10,
+    "HypesToStartHypeTrain": 2,
+    "AllowMultipleHypeFromSameUser": false
+  },
+  "Moderation": {
+      "BannablePPThreshold": 2500,
+      "BannedIps": []
+  },
+  "Database": {
+    "ConnectionString": "Host=mysql-sunrise-db;Port=3306;Database=sunrise;Username=root;Password=root;SslMode=Required;"
+  },
+  "Files": {
+    "DataPath": "./Data",
+    "BannedUsernamesName": "banned-usernames.txt"
+  },
+  "Redis": {
+    "ConnectionString": "redis",
+    "CacheLifeTime": 600,
+    "UseCache": true,
+    "UseRedisAsSecondCachingForDatabase": true,
+    "ClearCacheOnStartup": false
+  },
+  "Hangfire": {
+      "UseHangfireServer": true,
+      "ConnectionString": "Host=postgres;Port=5432;Database=hangfire;Username=postgres;Password=postgres;",
+      "MaxDailyBackupCount": 14
+  },
+  "Bot": {
+    "Username": "Sunshine Bot",
+    "Prefix": "!"
+  },
+  "API": {
+    "RateLimit": {
+      "CallsPerWindow": 300,
+      "Window": 10
+    },
+    "TokenExpiresIn": 3600,
+    "TokenSecret": "ReplaceMeWithSomething"
+  }
+}

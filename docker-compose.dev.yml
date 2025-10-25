@@ -1,0 +1,67 @@
+name: osu-sunrise-dev
+services:
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.dev.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    restart: unless-stopped
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+  postgres:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hangfire
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mysql-sunrise-db:
+    image: mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=sunrise
+    volumes:
+      - mysql:/var/lib/mysql
+    ports:
+      - "3308:3306"
+
+volumes:
+  mysql:
+  redis:
+  postgres_data:
+
+networks:
+  monitoring:
+    driver: bridge
