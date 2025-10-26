@@ -1,12 +1,12 @@
 # Sensitive files - NEVER include in Docker image
 *.pfx
+!sunrise.pfx
 *.p12
 *.key
 *.pem
 appsettings.Production.json
 appsettings.*.json
 !appsettings.json
-sunrise.pfx
 
 # Build artifacts
 **/bin/

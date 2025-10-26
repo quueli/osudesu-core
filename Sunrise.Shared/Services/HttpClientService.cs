@@ -138,7 +138,7 @@ public class HttpClientService
                 continue;
             }
 
-            var requestUri = string.Format(api.Url, args);
+            var requestUri = FormatUrlWithArraySupport(api.Url, args);
             requestUri = SerializeUrlQuery(requestUri);
 
             SunriseMetrics.ExternalApiRequestsCounterInc(type, api.Server, session);
@@ -316,6 +316,56 @@ public class HttpClientService
                 Status = HttpStatusCode.BadRequest
             });
         }
+    }
+
+    private string FormatUrlWithArraySupport(string urlTemplate, object?[] args)
+    {
+        var formattedArgs = new object?[args.Length];
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] is Array array && array.Length > 0)
+            {
+                formattedArgs[i] = $"__ARRAY_{i}__";
+            }
+            else
+            {
+                formattedArgs[i] = args[i];
+            }
+        }
+
+        var url = string.Format(urlTemplate, formattedArgs);
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] is Array array && array.Length > 0)
+            {
+                var placeholder = $"__ARRAY_{i}__";
+                if (url.Contains(placeholder))
+                {
+                    var paramMatch = System.Text.RegularExpressions.Regex.Match(url, $@"([?&])(\w+)={placeholder}");
+                    if (paramMatch.Success)
+                    {
+                        var separator = paramMatch.Groups[1].Value;
+                        var paramName = paramMatch.Groups[2].Value;
+
+                        // Build the array parameter string (e.g., "status=1&status=2&status=3")
+                        var arrayValues = new List<string>();
+                        foreach (var item in array)
+                        {
+                            arrayValues.Add($"{paramName}={item}");
+                        }
+
+                        var arrayString = string.Join("&", arrayValues);
+
+                        // Replace the placeholder with the array string
+                        url = url.Replace($"{separator}{paramName}={placeholder}", $"{separator}{arrayString}");
+                    }
+                }
+            }
+        }
+
+        return url;
     }
 
     private string SerializeUrlQuery(string url)

@@ -16,10 +16,16 @@ services:
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/certificate.pfx
     restart: unless-stopped
     depends_on:
-      - redis
-      - prometheus
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      mysql-sunrise-db:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      observatory:
+        condition: service_started
 
   redis:
     image: redis:latest
@@ -55,6 +61,12 @@ services:
       POSTGRES_DB: hangfire
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   mysql-sunrise-db:
     image: mysql
@@ -66,8 +78,101 @@ services:
       - mysql:/var/lib/mysql
     ports:
       - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  # Observatory service for beatmap management
+  observatory:
+    image: 'oven/bun:latest'
+    restart: unless-stopped
+    working_dir: /usr/src/app
+    volumes:
+      - ../Observatory:/usr/src/app
+    environment:
+      - NODE_ENV=production
+      - PORT=3333
+      - POSTGRES_HOST=observatory-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=observatory
+      - REDIS_HOST=observatory-redis
+      - LOKI_HOST=http://loki:3100
+      - IGNORE_RATELIMIT_KEY=dev
+      - RATELIMIT_CALLS_PER_WINDOW=150
+      - RATELIMIT_TIME_WINDOW=20000
+      # Available mirrors: direct, mino, osulabs, gatari, nerinyan, bancho
+      # mino (catboy.best) - BANNED on this server, must ignore
+      # osulabs (beatmaps.download) - currently unavailable
+      # Using: nerinyan.moe, osu.direct, gatari.pw, osu.ppy.sh (with OAuth)
+      - MIRRORS_TO_IGNORE=mino,osulabs
+      # OAuth credentials for osu.ppy.sh API
+      # IMPORTANT: These values are hardcoded here because Observatory container
+      # does not have access to the .env file in Sunrise directory
+      # To update: change values below and restart: docker compose up -d observatory
+      - BANCHO_CLIENT_ID=40889
+      - BANCHO_CLIENT_SECRET=KNUljmp85pQrWOiDHoy6rvjI5p7hvlTG6PKaA6nL
+    ports:
+      - "3333:3333"
+    command: ['sh', '-c', 'bun i && bun run db:migration && bun run start']
+    depends_on:
+      observatory-postgres:
+        condition: service_healthy
+      observatory-redis:
+        condition: service_started
+      loki:
+        condition: service_started
+
+  # PostgreSQL for Observatory
+  observatory-postgres:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: observatory
+    volumes:
+      - observatory_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U admin']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Redis for Observatory
+  observatory-redis:
+    image: redis:latest
+    restart: unless-stopped
+    volumes:
+      - observatory_redis:/data
+
+  # Loki for Observatory logging
+  loki:
+    image: grafana/loki:2.7.3
+    restart: unless-stopped
+
+  # Observatory Grafana
+  observatory-grafana:
+    image: grafana/grafana
+    restart: unless-stopped
+    ports:
+      - "3034:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - observatory_grafana:/var/lib/grafana
+    depends_on:
+      - loki
 
 volumes:
   mysql:
   redis:
   postgres_data:
+  observatory_postgres_data:
+  observatory_redis:
+  observatory_grafana:

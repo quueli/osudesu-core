@@ -419,7 +419,7 @@ public class BeatmapController(DatabaseService database, BeatmapService beatmapS
     [ProducesResponseType(typeof(BeatmapSetsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchBeatmapsets(
         [FromQuery(Name = "query")] string? query,
-        [FromQuery(Name = "status")] BeatmapStatusWeb[]? status,
+        [FromQuery(Name = "status")] string[]? status,
         [Range((int)GameMode.Standard, (int)GameMode.Mania)] [FromQuery(Name = "mode")]
         GameMode? mode,
         [Range(1, 100)] [FromQuery(Name = "limit")]
@@ -431,7 +431,28 @@ public class BeatmapController(DatabaseService database, BeatmapService beatmapS
     {
         var session = HttpContext.GetCurrentSession();
 
-        var beatmapSetStatus = status?.Any() == true ? string.Join("&status=", status.Select(s => (int)s)) : null;
+        // Parse status strings to enum values, then convert to integers
+        int[]? beatmapSetStatus = null;
+        if (status?.Any() == true)
+        {
+            var parsedStatuses = new List<int>();
+            foreach (var statusStr in status)
+            {
+                // Try to parse as enum name (e.g., "Ranked", "Approved")
+                if (Enum.TryParse<BeatmapStatusWeb>(statusStr, true, out var enumValue))
+                {
+                    parsedStatuses.Add((int)enumValue);
+                }
+                // Try to parse as integer (e.g., "1", "2")
+                else if (int.TryParse(statusStr, out var intValue))
+                {
+                    parsedStatuses.Add(intValue);
+                }
+            }
+
+            beatmapSetStatus = parsedStatuses.Any() ? parsedStatuses.ToArray() : null;
+        }
+
         var beatmapSetGameMode = mode.HasValue ? (int)mode : -1;
 
         var beatmapSetsResult = await beatmapService.SearchBeatmapSets(session,
